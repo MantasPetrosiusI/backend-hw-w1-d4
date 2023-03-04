@@ -175,11 +175,21 @@ blogPostsRouter.delete(
         (blogPost) => blogPost.id === req.params.blogPostId
       );
       if (!blogPost) {
-        res.status(404).send({ message: `It's 404 you know what it means :/` });
+        res
+          .status(404)
+          .send({ message: `It's 404 for blogPost you know what it means :/` });
+      }
+      const comment = blogPost.find(
+        (comment) => comment._id === req.params.commentId
+      );
+      if (!comment) {
+        res
+          .status(404)
+          .send({ message: `It's 404 for comment you know what it means :/` });
       }
 
-      const remainingBlogPosts = blogPosts.filter(
-        (blogPost) => blogPost.id === req.params.blogPostId
+      const remainingComments = blogPost.comments.filter(
+        (comm) => comm._id === comment._id
       );
       await writeBlogPosts(remainingBlogPosts);
       res.status(204).send(remainingBlogPosts);
