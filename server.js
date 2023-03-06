@@ -13,6 +13,7 @@ import {
 } from "./errorHandlers.js";
 
 const server = express();
+const port = process.env.PORT || 3024;
 
 server.use(cors());
 
@@ -31,6 +32,7 @@ server.use(unauthorizedHandler);
 server.use(notfoundHandler);
 server.use(genericErrorHandler);
 
-server.listen(3025, () => {
+server.listen(port, () => {
   console.table(endpoints(server));
+  console.log(port);
 });
