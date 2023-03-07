@@ -2,6 +2,12 @@ import Express from "express";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
+import {
+  getAuthors,
+  getBlogPosts,
+  writeAuthors,
+  writeBlogPosts,
+} from "../lib/fs-tools.js";
 
 const filesRouter = Express.Router();
 
@@ -25,7 +31,16 @@ filesRouter.post(
   async (req, res, next) => {
     try {
       console.log("FILE:", req.file);
-      res.send({ message: "file uploaded" });
+      const authors = await getAuthors();
+      const index = authors.findIndex(
+        (author) => author.id === req.params.authorId
+      );
+      if (index !== -1) {
+        console.log(authors[(index.avatar, `\n`, req.file.path)]);
+        authors[index].avatar = req.file.path;
+        await writeAuthors(authors);
+        res.status(201).send({ message: "Uploaded!" });
+      }
     } catch (error) {
       next(error);
     }
@@ -33,12 +48,20 @@ filesRouter.post(
 );
 
 filesRouter.post(
-  "/:blogPostId/uploadCover",
+  "/:blogPostId/uploadCover/single",
   uploaderCover,
   async (req, res, next) => {
     try {
       console.log("FILE:", req.file);
-      res.send({ message: "file uploaded" });
+      const blogPosts = await getBlogPosts();
+      const index = blogPosts.findIndex(
+        (blogPost) => blogPost.id === req.params.blogPostId
+      );
+      if (index !== -1) {
+        blogPosts[index].cover = req.file.path;
+        await writeBlogPosts(blogPosts);
+        res.status(201).send({ message: "Uploaded!" });
+      }
     } catch (error) {
       next(error);
     }
