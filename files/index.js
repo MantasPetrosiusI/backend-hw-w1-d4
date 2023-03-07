@@ -8,23 +8,23 @@ const filesRouter = Express.Router();
 const uploaderAvatar = multer({
   storage: new CloudinaryStorage({
     cloudinary,
-    params: { folder: "/img/avatars" },
+    params: { folder: "backend-w2-d1/img/avatars" },
   }),
 }).single("avatar");
 
 const uploaderCover = multer({
   storage: new CloudinaryStorage({
     cloudinary,
-    params: { folder: "/img/avatars" },
+    params: { folder: "/img/covers" },
   }),
 }).single("cover");
 
 filesRouter.post(
-  "/:authorId/uploadAvatar",
+  "/:authorId/uploadAvatar/single",
   uploaderAvatar,
   async (req, res, next) => {
     try {
-      console.log("FILE:", req.file.path);
+      console.log("FILE:", req.file);
       res.send({ message: "file uploaded" });
     } catch (error) {
       next(error);
@@ -37,7 +37,7 @@ filesRouter.post(
   uploaderCover,
   async (req, res, next) => {
     try {
-      console.log("FILE:", req.file.path);
+      console.log("FILE:", req.file);
       res.send({ message: "file uploaded" });
     } catch (error) {
       next(error);
