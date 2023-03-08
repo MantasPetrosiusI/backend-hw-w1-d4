@@ -15,10 +15,7 @@ import createError from "http-errors";
 const server = express();
 const port = process.env.PORT || 3024;
 
-const whitelist = [
-  process.env.REACT_APP_FE_DEV_URL,
-  process.env.REACT_APP_FE_PROD_URL,
-];
+const whitelist = [process.env.FE_DEV_URL, process.env.FE_PROD_URL];
 
 server.use(
   cors({

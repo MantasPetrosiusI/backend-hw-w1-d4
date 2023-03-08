@@ -16,12 +16,3 @@ export const blogPostSchema = Joi.object({
   content: Joi.string(),
   comments: Joi.array(),
 });
-
-export const commentsSchema = Joi.object({
-  comment: Joi.object({
-    id: Joi.string(),
-    text: Joi.string().required(),
-  }).required(),
-  createdAt: Joi.date(),
-  updatedAt: Joi.date(),
-});

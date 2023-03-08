@@ -1,6 +1,6 @@
 import express from "express";
 import uniqid from "uniqid";
-import { blogPostSchema, commentsSchema } from "./validation.js";
+import { blogPostSchema } from "./validation.js";
 import { getBlogPosts, writeBlogPosts } from "../lib/fs-tools.js";
 
 const blogPostsRouter = express.Router();
@@ -114,10 +114,6 @@ blogPostsRouter.get("/:blogPostId/comments", async (req, res, next) => {
 
 blogPostsRouter.post("/:blogPostId/comments", async (req, res, next) => {
   try {
-    const { error } = commentsSchema.validate(req.body);
-    if (error) {
-      return res.status(400).send(error.details[0].message);
-    }
     const blogPosts = await getBlogPosts();
     const index = blogPosts.findIndex(
       (blogPost) => blogPost.id === req.params.blogPostId
@@ -127,6 +123,7 @@ blogPostsRouter.post("/:blogPostId/comments", async (req, res, next) => {
       ...req.body,
       createdAt: new Date(),
     };
+    console.log(blogPosts[index]);
     blogPosts[index].comments.push(newComment);
     await writeBlogPosts(blogPosts);
     res.status(201).send(blogPosts[index].comments);
@@ -171,30 +168,19 @@ blogPostsRouter.delete(
   async (req, res, next) => {
     try {
       const blogPosts = await getBlogPosts();
-      const blogPost = blogPosts.find(
-        (blogPost) => blogPost.id === req.params.blogPostId
+      const index = blogPosts.findIndex(
+        (blogPost) => blogPost._id === req.params.postId
       );
-      if (!blogPost) {
-        res
-          .status(404)
-          .send({ message: `It's 404 for blogPost you know what it means :/` });
-      }
-      const comment = blogPost.find(
-        (comment) => comment._id === req.params.commentId
+      const oldBlogPost = blogPosts[index];
+      const newComments = oldBlogPost.comments.filter(
+        (comment) => comment._id !== req.params.commentId
       );
-      if (!comment) {
-        res
-          .status(404)
-          .send({ message: `It's 404 for comment you know what it means :/` });
-      }
-
-      const remainingComments = blogPost.comments.filter(
-        (comm) => comm._id === comment._id
-      );
-      await writeBlogPosts(remainingBlogPosts);
-      res.status(204).send(remainingBlogPosts);
+      const newPost = { ...oldBlogPost, comments: newComments };
+      blogPosts[index] = newPost;
+      await writeBlogPosts(blogPosts);
+      res.status(204).send();
     } catch (error) {
-      res.status(500).send({ message: error.message });
+      next(error);
     }
   }
 );
