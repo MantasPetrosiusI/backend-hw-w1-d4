@@ -11,11 +11,14 @@ import {
   notfoundHandler,
   genericErrorHandler,
 } from "./errorHandlers.js";
-
+import createError from "http-errors";
 const server = express();
 const port = process.env.PORT || 3024;
 
-const whitelist = [process.env.FE_DEV_URL, process.env.FE_PROD_URL];
+const whitelist = [
+  process.env.REACT_APP_FE_DEV_URL,
+  process.env.REACT_APP_FE_PROD_URL,
+];
 
 server.use(
   cors({
@@ -24,10 +27,7 @@ server.use(
         corsNext(null, true);
       } else {
         corsNext(
-          createHttpError(
-            400,
-            `Origin ${currentOrigin} is not in the whitelist!`
-          )
+          createError(400, `Origin ${currentOrigin} is not in the whitelist!`)
         );
       }
     },

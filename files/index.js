@@ -21,20 +21,22 @@ const uploaderAvatar = multer({
 const uploaderCover = multer({
   storage: new CloudinaryStorage({
     cloudinary,
-    params: { folder: "/img/covers" },
+    params: { folder: "backend-w2-d1/img/covers" },
   }),
 }).single("cover");
 
 filesRouter.post(
-  "/:authorId/uploadAvatar/single",
+  "/authors/:authorId/uploadAvatar/single",
   uploaderAvatar,
   async (req, res, next) => {
     try {
       console.log("FILE:", req.file);
       const authors = await getAuthors();
+      console.log(authors);
       const index = authors.findIndex(
-        (author) => author.id === req.params.authorId
+        (author) => author._id === req.params.authorId
       );
+      console.log(index);
       if (index !== -1) {
         console.log(authors[(index.avatar, `\n`, req.file.path)]);
         authors[index].avatar = req.file.path;
@@ -42,13 +44,14 @@ filesRouter.post(
         res.status(201).send({ message: "Uploaded!" });
       }
     } catch (error) {
+      console.log("fire");
       next(error);
     }
   }
 );
 
 filesRouter.post(
-  "/:blogPostId/uploadCover/single",
+  "/blogPosts/:blogPostId/uploadCover/single",
   uploaderCover,
   async (req, res, next) => {
     try {
