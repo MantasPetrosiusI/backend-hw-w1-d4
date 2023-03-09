@@ -1,18 +1,1 @@
-[
-  {
-    "id": "dx4ckqhh8lf19dg5a",
-    "category": "horror",
-    "title": "really",
-    "cover": "http://placekitten.com/200/300",
-    "readTime": { "value": 3, "unit": "minute" },
-    "author": {
-      "name": "totallyszReal",
-      "email": "akaileon@gmail.com",
-      "avatar": "https://placedog.net/500/280"
-    },
-    "content": "HTsadasfML",
-    "comments": [],
-    "createdAt": "2023-03-09T15:23:11.230Z",
-    "updatedAt": "2023-03-09T15:23:11.230Z"
-  }
-]
+[{"id":"dx4ckqhh8lf19dg5a","category":"horror","title":"really","cover":"http://placekitten.com/200/300","readTime":{"value":3,"unit":"minute"},"author":{"name":"totallyszReal","email":"akaileon@gmail.com","avatar":"https://placedog.net/500/280"},"content":"HTsadasfML","comments":[],"createdAt":"2023-03-09T15:23:11.230Z","updatedAt":"2023-03-09T15:23:11.230Z"},{"id":"dx4ckqaxglf1bqwp5","category":"horror","title":"really","cover":"http://placekitten.com/200/300","readTime":{"value":3,"unit":"minute"},"author":{"name":"totallyszReal","email":"akaileon@gmail.com","avatar":"https://placedog.net/500/280"},"content":"HTsadasfML","comments":[],"createdAt":"2023-03-09T16:29:38.440Z","updatedAt":"2023-03-09T16:29:38.440Z"}]
