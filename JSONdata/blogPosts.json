@@ -1,1 +1,25 @@
-[{"id":"dx4ckqfy8lf05sobf","category":"Technology","title":"Sky Adventure","cover":"https://res.cloudinary.com/dlfkpg7my/image/upload/v1678308919/backend-w2-d1/img/covers/ziwdimcdzto85hykxjux.jpg","readTime":{"value":1,"unit":"minute"},"author":{"name":"SKY T","avatar":"https://ui-avatars.com/api/?name=sky+t"},"content":"<p>gasgsd</p>","comments":[{"_id":"dx4ckq8eklf06k9ze","comment":"Hello! :)","author":"Sky Adventure","createdAt":"2023-03-08T21:16:44.810Z","updatedAt":"2023-03-08T21:46:08.201Z"}],"createdAt":"2023-03-08T20:55:17.018Z","updatedAt":"2023-03-08T20:55:17.018Z"}]
+[
+  {
+    "id": "dx4ckqfy8lf05sobf",
+    "category": "Technology",
+    "title": "Sky Adventure",
+    "cover": "https://res.cloudinary.com/dlfkpg7my/image/upload/v1678308919/backend-w2-d1/img/covers/ziwdimcdzto85hykxjux.jpg",
+    "readTime": { "value": 1, "unit": "minute" },
+    "author": {
+      "name": "SKY T",
+      "avatar": "https://ui-avatars.com/api/?name=sky+t"
+    },
+    "content": "<p>gasgsd</p>",
+    "comments": [
+      {
+        "_id": "dx4ckq8eklf06k9ze",
+        "comment": "Hello! :)",
+        "author": "Sky Adventure",
+        "createdAt": "2023-03-08T21:16:44.810Z",
+        "updatedAt": "2023-03-08T21:46:08.201Z"
+      }
+    ],
+    "createdAt": "2023-03-08T20:55:17.018Z",
+    "updatedAt": "2023-03-08T20:55:17.018Z"
+  }
+]

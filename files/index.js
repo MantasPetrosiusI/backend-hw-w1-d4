@@ -5,10 +5,10 @@ import { v2 as cloudinary } from "cloudinary";
 import {
   getAuthors,
   getBlogPosts,
-  getBlogpostsJSONReadableStream,
   writeAuthors,
   writeBlogPosts,
 } from "../lib/fs-tools.js";
+import { getBlogPostReadableStream } from "../lib/pdf-tools.js";
 import createError from "http-errors";
 import { pipeline } from "stream";
 
@@ -74,23 +74,29 @@ filesRouter.post(
   }
 );
 
-filesRouter.post("/blogPosts/:blogPostId/pdf", async (req, res, next) => {
-  const blogPosts = await getBlogPosts();
-  const blogPost = blogPosts.find((b) => b.id === req.params.blogPostId);
-  if (blogPost) {
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${req.params.blogPostId}.pdf`
-    );
-    const source = getBlogpostsJSONReadableStream(blogPost);
-    const destination = res;
-    pipeline(source, destination, (err) => {
-      if (err) {
-        next(err);
-      }
-    });
-  } else {
-    next(createError(404, `It's 404 regarding pdf you know what that means!`));
+filesRouter.get("/:blogPostId/pdf", async (req, res, next) => {
+  try {
+    const blogPosts = await getBlogPosts();
+    const blogPost = blogPosts.find((b) => b.id === req.params.blogPostId);
+    if (blogPost) {
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${req.params.blogPostId}.pdf`
+      );
+      const source = await getBlogPostReadableStream(blogPost);
+      const destination = res;
+      pipeline(source, destination, (err) => {
+        if (err) {
+          console.log(err);
+        }
+      });
+    } else {
+      next(
+        createError(404, `It's 404 regarding pdf you know what that means!`)
+      );
+    }
+  } catch (error) {
+    next(error);
   }
 });
 
