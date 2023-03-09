@@ -4,13 +4,19 @@ import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
 import {
   getAuthors,
+  getAuthorsJSONReadableStream,
+  getBlogPostJSONReadableStream,
   getBlogPosts,
   writeAuthors,
   writeBlogPosts,
 } from "../lib/fs-tools.js";
-import { getBlogPostReadableStream } from "../lib/pdf-tools.js";
+import {
+  getBlogPostReadableStream,
+  asyncBlogPostsPDFGenerator,
+} from "../lib/pdf-tools.js";
 import createError from "http-errors";
 import { pipeline } from "stream";
+import { Transform } from "@json2csv/node";
 
 const filesRouter = Express.Router();
 
@@ -100,4 +106,66 @@ filesRouter.get("/:blogPostId/pdf", async (req, res, next) => {
   }
 });
 
+filesRouter.get("/authorsCSV", async (req, res, next) => {
+  try {
+    res.setHeader("Content-Disposition", `attachment; filename=authors.csv`);
+    const source = getAuthorsJSONReadableStream();
+    const transform = new Transform({
+      fields: [
+        "_id",
+        "name",
+        "surname",
+        "email",
+        "dob",
+        "avatar",
+        "createdAt",
+        "updatedAt",
+      ],
+    });
+    const destination = res;
+    pipeline(source, transform, destination, (err) => {
+      if (err) console.log(err);
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+filesRouter.get("/blogPostsCSV", async (req, res, next) => {
+  try {
+    res.setHeader("Content-Disposition", `attachment; filename=blogPosts.csv`);
+    const source = getBlogPostJSONReadableStream();
+    const transform = new Transform({
+      fields: [
+        "id",
+        "category",
+        "title",
+        "cover",
+        "author",
+        "content",
+        "comments",
+        "createdAt",
+        "updatedAt",
+      ],
+    });
+    const destination = res;
+    pipeline(source, transform, destination, (err) => {
+      if (err) console.log(err);
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+filesRouter.get("/:blogPostId/asyncBlogPostsPDF", async (req, res, next) => {
+  try {
+    const blogPosts = await getBlogPosts();
+    console.log(blogPosts);
+    const blogPost = blogPosts.find((b) => b.id === req.params.blogPostId);
+    await asyncBlogPostsPDFGenerator(blogPost);
+    res.send({ message: `ok` });
+  } catch (error) {
+    next(error);
+  }
+});
 export default filesRouter;

@@ -11,6 +11,7 @@ export const blogPostSchema = Joi.object({
   }).required(),
   author: Joi.object({
     name: Joi.string().required(),
+    email: Joi.string().required(),
     avatar: Joi.string().required(),
   }).required(),
   content: Joi.string(),

@@ -1,8 +1,12 @@
 import express from "express";
 import uniqid from "uniqid";
 import { blogPostSchema } from "./validation.js";
-import { getBlogPosts, writeBlogPosts } from "../lib/fs-tools.js";
-
+import { getBlogPosts, writeBlogPosts, getAuthors } from "../lib/fs-tools.js";
+import {
+  sendsCreatedPostEmail,
+  sendsMailWithAttachment,
+} from "../lib/email-tools.js";
+import { asyncBlogPostsPDFGenerator } from "../lib/pdf-tools.js";
 const blogPostsRouter = express.Router();
 
 blogPostsRouter.get("/", async (req, res, next) => {
@@ -49,9 +53,15 @@ blogPostsRouter.post("/", async (req, res, next) => {
       updatedAt: new Date(),
     };
     const blogPosts = await getBlogPosts();
+    const authors = await getAuthors();
+    const author = authors.find((a) => a.email === req.body.author.email);
+
     blogPosts.push(blogPost);
     await writeBlogPosts(blogPosts);
+    await sendsCreatedPostEmail(author.email);
     res.status(201).send(blogPost);
+    await asyncBlogPostsPDFGenerator(blogPost);
+    await sendsMailWithAttachment(blogPost);
   } catch (error) {
     next(error);
   }

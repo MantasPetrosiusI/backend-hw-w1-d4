@@ -1,5 +1,6 @@
 import express from "express";
 import uniqid from "uniqid";
+import { sendsRegistrationEmail } from "../lib/email-tools.js";
 import { getAuthors, writeAuthors } from "../lib/fs-tools.js";
 
 const authorsRouter = express.Router();
@@ -46,6 +47,7 @@ authorsRouter.post("/", async (req, res, next) => {
     const authors = await getAuthors();
     authors.push(author);
     await writeAuthors(authors);
+    await sendsRegistrationEmail(email);
     res.send(author);
   } catch (error) {
     next(error);
