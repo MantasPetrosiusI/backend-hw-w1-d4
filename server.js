@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import cors from "cors";
 import { join } from "path";
 import endpoints from "express-list-endpoints";
@@ -46,7 +47,12 @@ server.use(unauthorizedHandler);
 server.use(notfoundHandler);
 server.use(genericErrorHandler);
 
-server.listen(port, () => {
-  console.table(endpoints(server));
-  console.log(port);
+mongoose.connect(process.env.MONGO_URL);
+
+mongoose.connection.on("connected", () => {
+  console.log("Connected!");
+  server.listen(port, () => {
+    console.table(endpoints(server));
+    console.log(port);
+  });
 });
