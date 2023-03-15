@@ -11,16 +11,18 @@ import { asyncBlogPostsPDFGenerator } from "../lib/pdf-tools.js";
 const blogPostsRouter = express.Router();
 
 blogPostsRouter.get("/", async (req, res, next) => {
-  const perPage = 1;
+  const perPage = req.query.perPage;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * perPage;
 
   try {
     const blogPosts = await blogPostsModel
       .find()
-      .sort({ createdAt: -1 })
+      .sort(req.query.sort)
       .skip(skip)
-      .limit(perPage);
+      .limit(req.query.limit);
+    // .skip(skip)
+    // .limit(perPage);
 
     if (req.query && req.query.title) {
       const foundBlogPosts = blogPosts.filter(
