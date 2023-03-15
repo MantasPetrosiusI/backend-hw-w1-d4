@@ -1,6 +1,6 @@
 import express from "express";
-import uniqid from "uniqid";
-// import { blogPostSchema } from "./validation.js";
+import mongoose from "mongoose";
+import createError from "http-errors";
 import blogPostsModel from "./model.js";
 import { getBlogPosts, writeBlogPosts, getAuthors } from "../lib/fs-tools.js";
 import {
@@ -11,8 +11,17 @@ import { asyncBlogPostsPDFGenerator } from "../lib/pdf-tools.js";
 const blogPostsRouter = express.Router();
 
 blogPostsRouter.get("/", async (req, res, next) => {
+  const perPage = 1;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * perPage;
+
   try {
-    const blogPosts = await blogPostsModel.find();
+    const blogPosts = await blogPostsModel
+      .find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage);
+
     if (req.query && req.query.title) {
       const foundBlogPosts = blogPosts.filter(
         (blogPost) => blogPost.title === req.query.title
@@ -29,12 +38,6 @@ blogPostsRouter.get("/", async (req, res, next) => {
 blogPostsRouter.get("/:blogPostId", async (req, res, next) => {
   try {
     const blogPosts = await blogPostsModel.findById(req.params.blogPostId);
-    // const blogPost = blogPosts.find(
-    //   (singleBlogPost) => singleBlogPost.id === req.params.blogPostId
-    // );
-    // if (!blogPost) {
-    //   res.status(404).send({ message: `It's 404 you know what it means :)` });
-    // }
     res.send(blogPosts);
   } catch (error) {
     next(error);
@@ -67,8 +70,7 @@ blogPostsRouter.put("/:blogPostId", async (req, res, next) => {
     const blogPosts = await getBlogPosts();
     const blogPostToUpdate = await blogPostsModel.findByIdAndUpdate(
       req.params.blogPostId,
-      req.body,
-      { new: true, runValidators: true }
+      req.body
     );
     const index = blogPosts.findIndex(
       (blogPost) => blogPost.id === req.params.blogPostId
@@ -76,7 +78,6 @@ blogPostsRouter.put("/:blogPostId", async (req, res, next) => {
     if (!index == -1) {
       res.status(404).send({ message: `It's 404 you know what it means X)` });
     }
-    const preEdit = blogPosts[index];
     blogPosts[index] = blogPostToUpdate;
     await writeBlogPosts(blogPosts);
     res.status(202).send(blogPostToUpdate);
@@ -91,13 +92,6 @@ blogPostsRouter.delete("/:blogPostId", async (req, res, next) => {
     const blogPostToDelete = await blogPostsModel.findByIdAndDelete(
       req.params.blogPostId
     );
-    // const blogPost = blogPosts.find(
-    //   (blogPost) => blogPost.id === req.params.blogPostId
-    // );
-    // if (!blogPost) {
-    //   res.status(404).send({ message: `It's 404 you know what it means :/` });
-    // }
-
     const remainingBlogPosts = blogPosts.filter(
       (blogPost) => blogPost.id === blogPostToDelete._id
     );
@@ -110,30 +104,67 @@ blogPostsRouter.delete("/:blogPostId", async (req, res, next) => {
 
 blogPostsRouter.get("/:blogPostId/comments", async (req, res, next) => {
   try {
-    const blogPosts = await getBlogPosts();
-    const index = blogPosts.findIndex(
-      (blogPost) => blogPost.id === req.params.blogPostId
-    );
-    res.send(blogPosts[index]);
+    const blogPost = await blogPostsModel.findById(req.params.blogPostId);
+    if (blogPost) {
+      res.send(blogPost.comments);
+    }
   } catch (error) {
     next(error);
   }
 });
 
+blogPostsRouter.get(
+  "/:blogPostId/comments/:commentId",
+  async (req, res, next) => {
+    try {
+      const blogPost = await blogPostsModel.findById(req.params.blogPostId);
+      if (!blogPost) {
+        return next(
+          createError(
+            404,
+            `Blog post with id ${req.params.blogPostId} not found!`
+          )
+        );
+      }
+
+      const comment = blogPost.comments.find(
+        (c) => c._id.toString() === req.params.commentId
+      );
+      if (!comment) {
+        return next(
+          createError(404, `Comment with id ${req.params.commentId} not found!`)
+        );
+      }
+
+      res.send(comment);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 blogPostsRouter.post("/:blogPostId/comments", async (req, res, next) => {
   try {
-    const blogPosts = await getBlogPosts();
-    const index = blogPosts.findIndex(
-      (blogPost) => blogPost.id === req.params.blogPostId
-    );
+    const blogPost = await blogPostsModel.findById(req.params.blogPostId);
+    if (!blogPost) {
+      return next(
+        createError(
+          404,
+          `Blog post with id ${req.params.blogPostId} not found!`
+        )
+      );
+    }
+
     const newComment = {
-      _id: uniqid(),
-      ...req.body,
+      comment: req.body.text,
+      author: req.body.author,
       createdAt: new Date(),
+      _id: new mongoose.Types.ObjectId(),
     };
-    blogPosts[index].comments.push(newComment);
-    await writeBlogPosts(blogPosts);
-    res.status(201).send(blogPosts[index].comments);
+    blogPost.comments.push(newComment);
+    const { _id } = await blogPost.save();
+
+    res.status(201).send({ _id });
   } catch (error) {
     next(error);
   }
@@ -143,27 +174,37 @@ blogPostsRouter.put(
   "/:blogPostId/comments/:commentId",
   async (req, res, next) => {
     try {
-      const blogPosts = await getBlogPosts();
-      let commentIndex = 0;
-      const blogIndex = blogPosts.findIndex(
-        (blogPost) => blogPost.id === req.params.blogPostId
-      );
-      if (!blogIndex == -1) {
-        res.status(404).send({ message: `It's 404 you know what it means X)` });
+      const blogPost = await blogPostsModel.findById(req.params.blogPostId);
+      if (blogPost) {
+        const index = blogPost.comments.findIndex(
+          (comment) => comment._id.toString() === req.params.commentId
+        );
+
+        if (index !== -1) {
+          blogPost.comments[index] = {
+            ...blogPost.comments[index],
+            ...req.body,
+            _id: blogPost.comments[index]._id, // ensure _id is not overwritten
+            createdAt: blogPost.comments[index].createdAt, // ensure createdAt is not overwritten
+          };
+          await blogPost.save();
+          res.send(blogPost);
+        } else {
+          next(
+            createError(
+              404,
+              `Comment with id ${req.params.commentId} not found!`
+            )
+          );
+        }
       } else {
-        commentIndex = blogPosts[blogIndex].comments.findIndex(
-          (comment) => comment._id === req.params.commentId
+        next(
+          createError(
+            404,
+            `Blog post with id ${req.params.blogPostId} not found!`
+          )
         );
       }
-      const preEdit = blogPosts[blogIndex].comments[commentIndex];
-      const afterEdit = {
-        ...preEdit,
-        ...req.body,
-        updatedAt: new Date(),
-      };
-      blogPosts[blogIndex].comments[commentIndex] = afterEdit;
-      await writeBlogPosts(blogPosts);
-      res.status(202).send(afterEdit);
     } catch (error) {
       next(error);
     }
@@ -174,17 +215,28 @@ blogPostsRouter.delete(
   "/:blogPostId/comments/:commentId",
   async (req, res, next) => {
     try {
-      const blogPosts = await getBlogPosts();
-      const index = blogPosts.findIndex(
-        (blogPost) => blogPost._id === req.params.postId
+      const blogPost = await blogPostsModel.findById(req.params.blogPostId);
+      if (!blogPost) {
+        return next(
+          createError(
+            404,
+            `Blog post with id ${req.params.blogPostId} not found!`
+          )
+        );
+      }
+      const commentIndex = blogPost.comments.findIndex(
+        (c) => c._id == req.params.commentId
       );
-      const oldBlogPost = blogPosts[index];
-      const newComments = oldBlogPost.comments.filter(
-        (comment) => comment._id !== req.params.commentId
-      );
-      const newPost = { ...oldBlogPost, comments: newComments };
-      blogPosts[index] = newPost;
-      await writeBlogPosts(blogPosts);
+      if (commentIndex === -1) {
+        return next(
+          createError(
+            404,
+            `Comment with id ${req.paramscommentId} not found in blog post with id ${req.paramsblogPostId}!`
+          )
+        );
+      }
+      blogPost.comments.splice(commentIndex, 1);
+      await blogPost.save();
       res.status(204).send();
     } catch (error) {
       next(error);
