@@ -6,7 +6,7 @@ const commentsSchema = new Schema(
   {
     comment: {
       text: { type: String, required: true },
-      author: { type: String },
+      author: { type: String, required: true },
     },
   },
   {

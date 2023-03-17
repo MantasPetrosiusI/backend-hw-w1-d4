@@ -20,16 +20,15 @@ const blogPostSchema2 = new Schema(
         },
       },
     },
-    author: {
-      name: { type: String, required: true },
-      email: { type: String, required: true },
-      avatar: { type: String, required: true },
-    },
+    author: { type: Schema.Types.ObjectId, ref: "Author" },
 
     content: { type: String },
-    comments: {
-      type: Array,
-    },
+    comments: [
+      {
+        content: String,
+        author: String,
+      },
+    ],
   },
   {
     timestamps: true,

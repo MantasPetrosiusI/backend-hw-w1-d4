@@ -2,7 +2,9 @@ import express from "express";
 import mongoose from "mongoose";
 import createError from "http-errors";
 import blogPostsModel from "./model.js";
-import { getBlogPosts, writeBlogPosts, getAuthors } from "../lib/fs-tools.js";
+import authorsModel from "../authors/model.js";
+import commentsModel from "./commentsModel.js";
+import { getBlogPosts, writeBlogPosts } from "../lib/fs-tools.js";
 import {
   sendsCreatedPostEmail,
   sendsMailWithAttachment,
@@ -20,7 +22,9 @@ blogPostsRouter.get("/", async (req, res, next) => {
       .find()
       .sort(req.query.sort)
       .skip(skip)
-      .limit(perPage);
+      .limit(perPage)
+      .populate({ path: "author", select: "name surname" })
+      .populate({ path: "comments", select: "text author" });
 
     if (req.query && req.query.title) {
       const foundBlogPosts = blogPosts.filter(
@@ -37,7 +41,9 @@ blogPostsRouter.get("/", async (req, res, next) => {
 
 blogPostsRouter.get("/:blogPostId", async (req, res, next) => {
   try {
-    const blogPosts = await blogPostsModel.findById(req.params.blogPostId);
+    const blogPosts = await blogPostsModel
+      .findById(req.params.blogPostId)
+      .populate({ path: "author", select: "name surname" });
     res.send(blogPosts);
   } catch (error) {
     next(error);
@@ -47,19 +53,18 @@ blogPostsRouter.get("/:blogPostId", async (req, res, next) => {
 blogPostsRouter.post("/", async (req, res, next) => {
   try {
     const blogPost = new blogPostsModel(req.body);
-    const blogPosts = await getBlogPosts();
-    const authors = await getAuthors();
-    const author = authors.find((a) => a.email === req.body.author.email);
-
-    blogPosts.push(blogPost);
-    await writeBlogPosts(blogPosts);
+    const authors = await authorsModel.findById(req.body.author);
     const { _id } = await blogPost.save();
-    await sendsCreatedPostEmail(author.email);
+    const blogPostSend = await blogPostsModel
+      .findById(_id)
+      .populate({ path: "author", select: "name surname" })
+      .populate({ path: "comments", select: "text author" });
+    await sendsCreatedPostEmail(authors.email);
 
-    res.status(201).send(blogPost);
+    res.status(201).send(blogPostSend);
 
-    await asyncBlogPostsPDFGenerator(blogPost);
-    await sendsMailWithAttachment(blogPost);
+    await asyncBlogPostsPDFGenerator(blogPostSend);
+    await sendsMailWithAttachment(blogPostSend);
   } catch (error) {
     next(error);
   }
@@ -118,25 +123,28 @@ blogPostsRouter.get(
   async (req, res, next) => {
     try {
       const blogPost = await blogPostsModel.findById(req.params.blogPostId);
-      if (!blogPost) {
-        return next(
+      if (blogPost) {
+        const comment = blogPost.comments.find(
+          (comment) => comment._id.toString() === req.params.commentId
+        );
+        if (comment) {
+          res.send(comment);
+        } else {
+          next(
+            createError(
+              404,
+              `comment with id ${req.params.commentId} not found!`
+            )
+          );
+        }
+      } else {
+        next(
           createError(
             404,
-            `Blog post with id ${req.params.blogPostId} not found!`
+            `Blog Post with id ${req.params.blogPostId} not found!`
           )
         );
       }
-
-      const comment = blogPost.comments.find(
-        (c) => c._id.toString() === req.params.commentId
-      );
-      if (!comment) {
-        return next(
-          createError(404, `Comment with id ${req.params.commentId} not found!`)
-        );
-      }
-
-      res.send(comment);
     } catch (error) {
       next(error);
     }
@@ -145,26 +153,24 @@ blogPostsRouter.get(
 
 blogPostsRouter.post("/:blogPostId/comments", async (req, res, next) => {
   try {
-    const blogPost = await blogPostsModel.findById(req.params.blogPostId);
-    if (!blogPost) {
-      return next(
+    const newComment = new commentsModel(req.body);
+    const commentToInsert = { ...newComment.toObject() };
+    const updatedBlogPost = await blogPostsModel.findByIdAndUpdate(
+      req.params.blogPostId,
+      { $push: { comments: commentToInsert } },
+      { new: true, runValidators: true }
+    );
+    console.log(updatedBlogPost);
+    if (updatedBlogPost) {
+      res.send(updatedBlogPost.comments);
+    } else {
+      next(
         createError(
           404,
-          `Blog post with id ${req.params.blogPostId} not found!`
+          `Blog Post with id ${req.params.blogPostId} not found!`
         )
       );
     }
-
-    const newComment = {
-      comment: req.body.text,
-      author: req.body.author,
-      createdAt: new Date(),
-      _id: new mongoose.Types.ObjectId(),
-    };
-    blogPost.comments.push(newComment);
-    const { _id } = await blogPost.save();
-
-    res.status(201).send({ _id });
   } catch (error) {
     next(error);
   }
@@ -179,21 +185,18 @@ blogPostsRouter.put(
         const index = blogPost.comments.findIndex(
           (comment) => comment._id.toString() === req.params.commentId
         );
-
         if (index !== -1) {
           blogPost.comments[index] = {
-            ...blogPost.comments[index],
+            ...blogPost.comments[index].toObject(),
             ...req.body,
-            _id: blogPost.comments[index]._id, // ensure _id is not overwritten
-            createdAt: blogPost.comments[index].createdAt, // ensure createdAt is not overwritten
           };
           await blogPost.save();
-          res.send(blogPost);
+          res.send(blogPost.comments[index]);
         } else {
           next(
             createError(
               404,
-              `Comment with id ${req.params.commentId} not found!`
+              `comment with id ${req.params.commentId} not found!`
             )
           );
         }
@@ -201,7 +204,7 @@ blogPostsRouter.put(
         next(
           createError(
             404,
-            `Blog post with id ${req.params.blogPostId} not found!`
+            `blogPost with id ${req.params.blogPostId} not found!`
           )
         );
       }
@@ -215,29 +218,21 @@ blogPostsRouter.delete(
   "/:blogPostId/comments/:commentId",
   async (req, res, next) => {
     try {
-      const blogPost = await blogPostsModel.findById(req.params.blogPostId);
-      if (!blogPost) {
-        return next(
-          createError(
-            404,
-            `Blog post with id ${req.params.blogPostId} not found!`
-          )
-        );
-      }
-      const commentIndex = blogPost.comments.findIndex(
-        (c) => c._id == req.params.commentId
+      const updatedblogPost = await blogPostsModel.findByIdAndUpdate(
+        req.params.blogPostId,
+        { $pull: { comments: { _id: req.params.commentId } } },
+        { new: true, runValidators: true }
       );
-      if (commentIndex === -1) {
-        return next(
+      if (updatedblogPost) {
+        res.send(updatedblogPost);
+      } else {
+        next(
           createError(
             404,
-            `Comment with id ${req.paramscommentId} not found in blog post with id ${req.paramsblogPostId}!`
+            `blogPost with id ${req.params.blogPostId} not found!`
           )
         );
       }
-      blogPost.comments.splice(commentIndex, 1);
-      await blogPost.save();
-      res.status(204).send();
     } catch (error) {
       next(error);
     }
