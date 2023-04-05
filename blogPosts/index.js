@@ -1,6 +1,7 @@
 import express from "express";
-import mongoose from "mongoose";
 import createError from "http-errors";
+import { basicAuthMiddleware } from "../lib/basicUser.js";
+import { adminMiddleware } from "../lib/admin.js";
 import blogPostsModel from "./model.js";
 import authorsModel from "../authors/model.js";
 import commentsModel from "./commentsModel.js";
@@ -12,7 +13,7 @@ import {
 import { asyncBlogPostsPDFGenerator } from "../lib/pdf-tools.js";
 const blogPostsRouter = express.Router();
 
-blogPostsRouter.get("/", async (req, res, next) => {
+blogPostsRouter.get("/", basicAuthMiddleware, async (req, res, next) => {
   const perPage = req.query.limit;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * perPage;
@@ -39,6 +40,63 @@ blogPostsRouter.get("/", async (req, res, next) => {
   }
 });
 
+blogPostsRouter.get(
+  "/me/stories",
+  basicAuthMiddleware,
+  async (req, res, next) => {
+    try {
+      const blogPosts = await blogPostsModel.find({ author: req.author._id });
+      res.send({
+        blogPosts,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+blogPostsRouter.put(
+  "/me/:blogPostID",
+  basicAuthMiddleware,
+  async (req, res, next) => {
+    try {
+      const blogPost = await blogPostsModel.findById(req.params.blogPostID);
+      if (blogPost) {
+        const updateBlogPost = await blogPostsModel.findByIdAndUpdate(
+          req.params.blogPostID,
+          req.body,
+          { new: true, runValidators: true }
+        );
+        res.send(updateBlogPost);
+      } else {
+        next(createError(404, `Author not found!`));
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+blogPostsRouter.delete(
+  "/me/:blogpostID",
+  basicAuthMiddleware,
+  async (req, res, next) => {
+    try {
+      const blogpost = await blogPostsModel.findById(req.params.blogpostID);
+      if (blogpost) {
+        const deleteBlogpost = await blogPostsModel.findOneAndDelete(
+          req.params.blogpostID
+        );
+        res.status(204).send();
+      } else {
+        next(createError(404, `Author  found!`));
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 blogPostsRouter.get("/:blogPostId", async (req, res, next) => {
   try {
     const blogPosts = await blogPostsModel
@@ -50,7 +108,7 @@ blogPostsRouter.get("/:blogPostId", async (req, res, next) => {
   }
 });
 
-blogPostsRouter.post("/", async (req, res, next) => {
+blogPostsRouter.post("/", basicAuthMiddleware, async (req, res, next) => {
   try {
     const blogPost = new blogPostsModel(req.body);
     const authors = await authorsModel.findById(req.body.author);
@@ -70,42 +128,47 @@ blogPostsRouter.post("/", async (req, res, next) => {
   }
 });
 
-blogPostsRouter.put("/:blogPostId", async (req, res, next) => {
-  try {
-    const blogPosts = await getBlogPosts();
-    const blogPostToUpdate = await blogPostsModel.findByIdAndUpdate(
-      req.params.blogPostId,
-      req.body
-    );
-    const index = blogPosts.findIndex(
-      (blogPost) => blogPost.id === req.params.blogPostId
-    );
-    if (!index == -1) {
-      res.status(404).send({ message: `It's 404 you know what it means X)` });
+blogPostsRouter.put(
+  "/:blogPostID",
+  basicAuthMiddleware,
+  adminMiddleware,
+  async (req, res, next) => {
+    try {
+      const updateBlogPost = await blogPostsModel.findByIdAndUpdate(
+        req.params.blogPostID,
+        req.body,
+        { new: true, runValidators: true }
+      );
+      if (updateBlogPost) {
+        res.send(updateBlogPost);
+      } else {
+        next(createError(404, `Blogpost not found!`));
+      }
+    } catch (error) {
+      next(error);
     }
-    blogPosts[index] = blogPostToUpdate;
-    await writeBlogPosts(blogPosts);
-    res.status(202).send(blogPostToUpdate);
-  } catch (error) {
-    next(error);
   }
-});
+);
 
-blogPostsRouter.delete("/:blogPostId", async (req, res, next) => {
-  try {
-    const blogPosts = await getBlogPosts();
-    const blogPostToDelete = await blogPostsModel.findByIdAndDelete(
-      req.params.blogPostId
-    );
-    const remainingBlogPosts = blogPosts.filter(
-      (blogPost) => blogPost.id === blogPostToDelete._id
-    );
-    await writeBlogPosts(remainingBlogPosts);
-    res.status(204).send(`Deleted`);
-  } catch (error) {
-    res.status(500).send({ message: error.message });
+blogPostsRouter.delete(
+  "/:blogPostID",
+  basicAuthMiddleware,
+  adminMiddleware,
+  async (req, res, next) => {
+    try {
+      const deletedBlogpost = await blogPostsModel.findByIdAndDelete(
+        req.params.blogPostID
+      );
+      if (deletedBlogpost) {
+        res.status(204).send();
+      } else {
+        next(createError(404, `Blogpost not found!`));
+      }
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 blogPostsRouter.get("/:blogPostId/comments", async (req, res, next) => {
   try {

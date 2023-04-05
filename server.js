@@ -7,10 +7,10 @@ import authorsRouter from "./authors/index.js";
 import blogPostsRouter from "./blogPosts/index.js";
 import filesRouter from "./files/index.js";
 import {
-  badRequestHandler,
-  unauthorizedHandler,
-  notfoundHandler,
-  genericErrorHandler,
+  unauthorizedErrorHandler,
+  forbiddenErrorHandler,
+  notFoundErrorHandler,
+  genericErroHandler,
 } from "./errorHandlers.js";
 import createError from "http-errors";
 const server = express();
@@ -42,10 +42,10 @@ server.use("/authors", authorsRouter);
 server.use("/blogPosts", blogPostsRouter);
 server.use("/", filesRouter);
 
-server.use(badRequestHandler);
-server.use(unauthorizedHandler);
-server.use(notfoundHandler);
-server.use(genericErrorHandler);
+server.use(unauthorizedErrorHandler);
+server.use(forbiddenErrorHandler);
+server.use(notFoundErrorHandler);
+server.use(genericErroHandler);
 
 mongoose.connect(process.env.MONGO_URL);
 

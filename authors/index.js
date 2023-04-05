@@ -1,41 +1,77 @@
 import express from "express";
 import uniqid from "uniqid";
-import { sendsRegistrationEmail } from "../lib/email-tools.js";
 import { getAuthors, writeAuthors } from "../lib/fs-tools.js";
 import authorsModel from "./model.js";
+import createHttpError from "http-errors";
+import { basicAuthMiddleware } from "../lib/basicUser.js";
+import { adminMiddleware } from "../lib/admin.js";
+import { mquery } from "mongoose";
 
 const authorsRouter = express.Router();
 
+authorsRouter.post("/", async (req, res, next) => {
+  try {
+    const newAuthor = new authorsModel(req.body);
+    const { _id } = await newAuthor.save();
+    res.status(201).send({ _id });
+  } catch (error) {
+    next(error);
+  }
+});
+
 authorsRouter.get("/", async (req, res, next) => {
   try {
-    const authors = await authorsModel.find();
+    const mQuery = q2m(req.query);
+    const authors = await authorsModel.find(
+      mQuery.criteria,
+      mquery.options.fields
+    );
     res.send(authors);
   } catch (error) {
     next(error);
   }
 });
 
-authorsRouter.get("/:authorId", async (req, res, next) => {
+authorsRouter.get("/me", basicAuthMiddleware, async (req, res, next) => {
   try {
-    const author = await authorsModel.findById(req.params.authorId);
-    if (author) {
-      res.send(author);
-    } else {
-      res.status(404).send({
-        message: `Author with that id was not found! (${req.params.authorId})`,
-      });
-    }
+    res.send(req.author);
   } catch (error) {
     next(error);
   }
 });
 
-authorsRouter.post("/", async (req, res, next) => {
+authorsRouter.put("/me", basicAuthMiddleware, async (req, res, next) => {
   try {
-    const newAuthor = authorsModel(req.body);
-    const { _id } = newAuthor.save();
-    await sendsRegistrationEmail(req.body.email);
-    res.send(_id);
+    const updatedAuthor = await authorsModel.findByIdAndUpdate(
+      req.author._id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    res.send(updatedAuthor);
+  } catch (error) {
+    next(error);
+  }
+});
+
+authorsRouter.delete("/me", basicAuthMiddleware, async (req, res, next) => {
+  try {
+    await authorsModel.findOneAndDelete(req.author._id);
+    req.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+authorsRouter.get("/:authorId", basicAuthMiddleware, async (req, res, next) => {
+  try {
+    const author = await authorsModel.findById(req.params.authorId);
+    if (author) {
+      res.send(author);
+    } else {
+      next(
+        createHttpError(404, `Author with id ${req.params.authorId} not found!`)
+      );
+    }
   } catch (error) {
     next(error);
   }
@@ -43,17 +79,17 @@ authorsRouter.post("/", async (req, res, next) => {
 
 authorsRouter.put("/:authorId", async (req, res, next) => {
   try {
-    const author = await authorsModel.findByIdAndUpdate(
+    const updatedAuthor = await authorsModel.findByIdAndUpdate(
       req.params.authorId,
       req.body,
       { new: true, runValidators: true }
     );
-    if (author) {
-      res.send(author);
+    if (updatedAuthor) {
+      res.send(updatedAuthor);
     } else {
-      res.status(404).send({
-        message: `Author with that id was not found! (${req.params.authorId})`,
-      });
+      next(
+        createHttpError(404, `Author with id ${req.params.authorId} not found!`)
+      );
     }
   } catch (error) {
     next(error);
@@ -62,13 +98,15 @@ authorsRouter.put("/:authorId", async (req, res, next) => {
 
 authorsRouter.delete("/:authorId", async (req, res, next) => {
   try {
-    const author = await authorsModel.findByIdAndUpdate(req.params.authorId);
-    if (author) {
-      res.status(204).send(`Deleted!`);
+    const deletedAuthor = await authorsModel.findByIdAndDelete(
+      req.params.authorId
+    );
+    if (deletedAuthor) {
+      res.status(204).send();
     } else {
-      res.status(404).send({
-        message: `Author with that id was not found! (${req.params.authorId})`,
-      });
+      next(
+        createHttpError(404, `Author with id ${req.params.authorId} not found!`)
+      );
     }
   } catch (error) {
     next(error);
