@@ -16,10 +16,10 @@ authorsRouter.get(
 authorsRouter.get(
   "/auth/google/callback",
   passport.authenticate("google", { session: false }),
-  (request, response, next) => {
+  (req, res, next) => {
     try {
       response.redirect(
-        `${process.env.FE_URL}?accessToken=${request.user.accessToken}`
+        `${process.env.FE_URL}?accessToken=${req.user.accessToken}`
       );
     } catch (error) {
       next(error);
