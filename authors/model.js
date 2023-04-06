@@ -17,7 +17,11 @@ const authorsSchema = new Schema(
       enum: ["Admin", "User"],
       default: "User",
     },
+    googleId: {
+      type: String,
+    },
   },
+
   {
     timestamps: true,
   },

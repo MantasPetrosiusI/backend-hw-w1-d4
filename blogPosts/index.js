@@ -5,15 +5,16 @@ import { adminMiddleware } from "../lib/admin.js";
 import blogPostsModel from "./model.js";
 import authorsModel from "../authors/model.js";
 import commentsModel from "./commentsModel.js";
-import { getBlogPosts, writeBlogPosts } from "../lib/fs-tools.js";
 import {
   sendsCreatedPostEmail,
   sendsMailWithAttachment,
 } from "../lib/email-tools.js";
 import { asyncBlogPostsPDFGenerator } from "../lib/pdf-tools.js";
+import { JWTAuthMiddleware } from "../lib/jwt-tool.js";
+
 const blogPostsRouter = express.Router();
 
-blogPostsRouter.get("/", basicAuthMiddleware, async (req, res, next) => {
+blogPostsRouter.get("/", JWTAuthMiddleware, async (req, res, next) => {
   const perPage = req.query.limit;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * perPage;
@@ -42,7 +43,7 @@ blogPostsRouter.get("/", basicAuthMiddleware, async (req, res, next) => {
 
 blogPostsRouter.get(
   "/me/stories",
-  basicAuthMiddleware,
+  JWTAuthMiddleware,
   async (req, res, next) => {
     try {
       const blogPosts = await blogPostsModel.find({ author: req.author._id });
@@ -57,7 +58,7 @@ blogPostsRouter.get(
 
 blogPostsRouter.put(
   "/me/:blogPostID",
-  basicAuthMiddleware,
+  JWTAuthMiddleware,
   async (req, res, next) => {
     try {
       const blogPost = await blogPostsModel.findById(req.params.blogPostID);
@@ -79,7 +80,7 @@ blogPostsRouter.put(
 
 blogPostsRouter.delete(
   "/me/:blogpostID",
-  basicAuthMiddleware,
+  JWTAuthMiddleware,
   async (req, res, next) => {
     try {
       const blogpost = await blogPostsModel.findById(req.params.blogpostID);
@@ -108,7 +109,7 @@ blogPostsRouter.get("/:blogPostId", async (req, res, next) => {
   }
 });
 
-blogPostsRouter.post("/", basicAuthMiddleware, async (req, res, next) => {
+blogPostsRouter.post("/", JWTAuthMiddleware, async (req, res, next) => {
   try {
     const blogPost = new blogPostsModel(req.body);
     const authors = await authorsModel.findById(req.body.author);
@@ -130,8 +131,7 @@ blogPostsRouter.post("/", basicAuthMiddleware, async (req, res, next) => {
 
 blogPostsRouter.put(
   "/:blogPostID",
-  basicAuthMiddleware,
-  adminMiddleware,
+  JWTAuthMiddleware,
   async (req, res, next) => {
     try {
       const updateBlogPost = await blogPostsModel.findByIdAndUpdate(
@@ -152,8 +152,7 @@ blogPostsRouter.put(
 
 blogPostsRouter.delete(
   "/:blogPostID",
-  basicAuthMiddleware,
-  adminMiddleware,
+  JWTAuthMiddleware,
   async (req, res, next) => {
     try {
       const deletedBlogpost = await blogPostsModel.findByIdAndDelete(

@@ -1,13 +1,31 @@
 import express from "express";
-import uniqid from "uniqid";
-import { getAuthors, writeAuthors } from "../lib/fs-tools.js";
 import authorsModel from "./model.js";
 import createHttpError from "http-errors";
-import { basicAuthMiddleware } from "../lib/basicUser.js";
-import { adminMiddleware } from "../lib/admin.js";
 import { mquery } from "mongoose";
+import passport from "passport";
+import { JWTAuthMiddleware } from "../lib/jwt-tool.js";
+import { createAccessToken } from "../lib/access.js";
 
 const authorsRouter = express.Router();
+
+authorsRouter.get(
+  "/auth/google",
+  passport.authenticate("google", { scope: ["profile", " email"] })
+);
+
+authorsRouter.get(
+  "/auth/google/callback",
+  passport.authenticate("google", { session: false }),
+  (request, response, next) => {
+    try {
+      response.redirect(
+        `${process.env.FE_URL}?accessToken=${request.user.accessToken}`
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 authorsRouter.post("/", async (req, res, next) => {
   try {
@@ -19,7 +37,7 @@ authorsRouter.post("/", async (req, res, next) => {
   }
 });
 
-authorsRouter.get("/", async (req, res, next) => {
+authorsRouter.get("/", JWTAuthMiddleware, async (req, res, next) => {
   try {
     const mQuery = q2m(req.query);
     const authors = await authorsModel.find(
@@ -32,7 +50,7 @@ authorsRouter.get("/", async (req, res, next) => {
   }
 });
 
-authorsRouter.get("/me", basicAuthMiddleware, async (req, res, next) => {
+authorsRouter.get("/me", JWTAuthMiddleware, async (req, res, next) => {
   try {
     res.send(req.author);
   } catch (error) {
@@ -40,7 +58,7 @@ authorsRouter.get("/me", basicAuthMiddleware, async (req, res, next) => {
   }
 });
 
-authorsRouter.put("/me", basicAuthMiddleware, async (req, res, next) => {
+authorsRouter.put("/me", JWTAuthMiddleware, async (req, res, next) => {
   try {
     const updatedAuthor = await authorsModel.findByIdAndUpdate(
       req.author._id,
@@ -53,7 +71,7 @@ authorsRouter.put("/me", basicAuthMiddleware, async (req, res, next) => {
   }
 });
 
-authorsRouter.delete("/me", basicAuthMiddleware, async (req, res, next) => {
+authorsRouter.delete("/me", JWTAuthMiddleware, async (req, res, next) => {
   try {
     await authorsModel.findOneAndDelete(req.author._id);
     req.status(204).send();
@@ -62,7 +80,7 @@ authorsRouter.delete("/me", basicAuthMiddleware, async (req, res, next) => {
   }
 });
 
-authorsRouter.get("/:authorId", basicAuthMiddleware, async (req, res, next) => {
+authorsRouter.get("/:authorId", JWTAuthMiddleware, async (req, res, next) => {
   try {
     const author = await authorsModel.findById(req.params.authorId);
     if (author) {
@@ -77,7 +95,7 @@ authorsRouter.get("/:authorId", basicAuthMiddleware, async (req, res, next) => {
   }
 });
 
-authorsRouter.put("/:authorId", async (req, res, next) => {
+authorsRouter.put("/:authorId", JWTAuthMiddleware, async (req, res, next) => {
   try {
     const updatedAuthor = await authorsModel.findByIdAndUpdate(
       req.params.authorId,
@@ -96,46 +114,41 @@ authorsRouter.put("/:authorId", async (req, res, next) => {
   }
 });
 
-authorsRouter.delete("/:authorId", async (req, res, next) => {
-  try {
-    const deletedAuthor = await authorsModel.findByIdAndDelete(
-      req.params.authorId
-    );
-    if (deletedAuthor) {
-      res.status(204).send();
-    } else {
-      next(
-        createHttpError(404, `Author with id ${req.params.authorId} not found!`)
+authorsRouter.delete(
+  "/:authorId",
+  JWTAuthMiddleware,
+  async (req, res, next) => {
+    try {
+      const deletedAuthor = await authorsModel.findByIdAndDelete(
+        req.params.authorId
       );
+      if (deletedAuthor) {
+        res.status(204).send();
+      } else {
+        next(
+          createHttpError(
+            404,
+            `Author with id ${req.params.authorId} not found!`
+          )
+        );
+      }
+    } catch (error) {
+      next(error);
     }
-  } catch (error) {
-    next(error);
   }
-});
+);
 
-authorsRouter.post("/checkEmail", async (req, res, next) => {
+authorsRouter.post("/googleLogin", async (req, res, next) => {
   try {
-    const { name, surname, email, dob, avatar } = req.body;
-    const authors = await getAuthors();
-    console.log(email);
-    const index = authors.findIndex((author) => author.email === email);
-    console.log(index);
-    if (index === -1) {
-      const author = {
-        _id: uniqid(),
-        name,
-        surname,
-        email,
-        dob,
-        avatar,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      authors.push(author);
-      await writeAuthors(authors);
-      res.send(author);
+    const { email, password } = req.body;
+    const author = await authorsModel.checkCredentials(email, password);
+
+    if (author) {
+      const data = { _id: author._id, role: author.role };
+      const accessToken = await createAccessToken(data);
+      res.send({ accessToken });
     } else {
-      res.status(404).send({ message: `Matching email found!` });
+      next(createHttpError(401, "Bad credentials."));
     }
   } catch (error) {
     next(error);

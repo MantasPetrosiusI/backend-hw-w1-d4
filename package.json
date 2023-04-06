@@ -24,9 +24,12 @@
     "http-errors": "^2.0.0",
     "image-to-base64": "^2.2.0",
     "joi": "^17.8.3",
+    "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.1",
     "multer": "^1.4.5-lts.1",
     "multer-storage-cloudinary": "^4.0.0",
+    "passport": "^0.6.0",
+    "passport-google-oauth20": "^2.0.0",
     "pdfmake": "^0.2.7",
     "query-to-mongo": "^0.10.2",
     "uniqid": "^5.4.0"

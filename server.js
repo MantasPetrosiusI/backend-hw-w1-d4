@@ -1,7 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
-import { join } from "path";
 import endpoints from "express-list-endpoints";
 import authorsRouter from "./authors/index.js";
 import blogPostsRouter from "./blogPosts/index.js";
@@ -13,8 +12,13 @@ import {
   genericErroHandler,
 } from "./errorHandlers.js";
 import createError from "http-errors";
+import passport from "passport";
+import googleStrategy from "./lib/googleOAuth.js";
+
 const server = express();
 const port = process.env.PORT || 3024;
+
+passport.use("google", googleStrategy);
 
 const whitelist = [process.env.FE_DEV_URL, process.env.FE_PROD_URL];
 
@@ -32,11 +36,8 @@ server.use(
   })
 );
 
-const publicFolderPath = join(process.cwd(), "./public");
-
-server.use(express.static(publicFolderPath));
-
 server.use(express.json());
+server.use(passport.initialize());
 
 server.use("/authors", authorsRouter);
 server.use("/blogPosts", blogPostsRouter);
